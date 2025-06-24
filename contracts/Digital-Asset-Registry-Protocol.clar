@@ -236,3 +236,40 @@
   )
 )
 
+;; Registry statistics and system information retrieval
+(define-read-only (get-registry-statistics)
+  (ok {
+    total-assets-registered: (var-get digital-asset-counter),
+    system-administrator: system-admin-authority
+  })
+)
+
+;; Asset ownership information retrieval utility
+(define-read-only (get-asset-owner (asset-identifier uint))
+  (match (map-get? enterprise-asset-registry { asset-identifier: asset-identifier })
+    asset-data (ok (get asset-owner asset-data))
+    asset-not-found-exception
+  )
+)
+
+;; Comprehensive access permission status verification
+(define-read-only (verify-access-status (asset-identifier uint) (user-principal principal))
+  (let
+    (
+      (asset-data (unwrap! (map-get? enterprise-asset-registry { asset-identifier: asset-identifier })
+        asset-not-found-exception))
+      (granted-access (default-to false
+        (get read-access-enabled
+          (map-get? access-control-list { asset-identifier: asset-identifier, user-principal: user-principal })
+        )
+      ))
+    )
+    ;; Return detailed access status information
+    (ok {
+      has-granted-access: granted-access,
+      is-asset-owner: (is-eq (get asset-owner asset-data) user-principal),
+      can-read-asset: (or granted-access (is-eq (get asset-owner asset-data) user-principal))
+    })
+  )
+)
+
